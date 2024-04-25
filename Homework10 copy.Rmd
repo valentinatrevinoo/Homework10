@@ -1,0 +1,128 @@
+---
+title: "Homework 10"
+author: "Valentina Trevino"
+date: "2024-04-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+library(knitr)
+library(tibble)
+library(dplyr)
+library(kableExtra)
+library(mosaic)
+library(minpack.lm)
+library(moderndive)
+library(effectsize)
+```
+
+### Problem 1: Redlining
+
+```{r warning=FALSE, echo=FALSE, message=FALSE}
+setwd("/Users/valentinatrevino/Desktop/spring '24/SDS")
+redlining_data <- read.csv("redlining.csv")
+redlining_model <- lm(policies ~ minority + fire + age + income, data = redlining_data)
+summary(redlining_model)
+
+get_regression_table(redlining_model, conf.level = 0.95, digits=2)
+
+ggplot(redlining_data, aes(x = minority, y = policies)) +
+  geom_point(shape = 21, fill = "mediumpurple3", color = "black", size = 3) +
+  labs(x = "Percentage of Minority Residents by ZIP Code",
+       y = "FAIR Policies per 100 Housing Units",
+       title = "Relationship between Minority Residents and FAIR Policies") +
+  theme_minimal() +
+  theme(panel.background = element_rect(fill = "thistle"))
+
+cor_coef <- round(cor(redlining_data$minority, redlining_data$policies), 3)
+cat("Correlation coefficient between Minority and FAIR Policies:", cor_coef)
+```
+
+#### The question we aim to address through this dataset analysis is whether there exists a correlation between the number of FAIR policies, a federal program providing insurance for those unable to obtain coverage from private firms, and the racial/ethnic makeup of ZIP codes. This analysis also considers potential confounding factors such as the age of buildings, family income, and the incidence of fires in the area.
+
+#### We can address this question by constructing a linear regression model that encompasses all four of these variables, seeking to identify any potential relationships among them.
+
+#### The results of the model unmistakably reveal a significant relationship between the number of FAIR policies and the minority population size within specific ZIP codes. Examining the estimated coefficients of the regression model alongside the t-values, a clear positive correlation emerges between the variables of minority population and fire incidents in the area with the number of FAIR policies. Additionally, there appears to be a correlation between the age of buildings and the number of FAIR policies. However, income does not appear to be a confounding factor. With an estimate of -0.015965 and a t value of -0.418, it shows no positive correlation with the variable under analysis (FAIR policies).  
+
+#### In conclusion, after constructing the linear regression model and scrutinizing the strong correlations revealed, it can be inferred that there is likely discrimination against minority groups, or at the very least, significant disparities among racial and ethnic groups concerning their access to insurance coverage from private firms. 
+
+#### At the end I also decided to include the correlation coefficient between Minority and the number of FAIR policies per capita because it's a straightforward measure that clearly indicates the positive correlation between the two variables. 
+
+### Problem 2: Grocery store prices
+
+#### Average Price of Products Sold at Different Stores
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+
+setwd("/Users/valentinatrevino/Desktop/spring '24/SDS")
+groceries_data <- read.csv("groceries.csv")
+
+average_prices <- groceries_data %>%
+  group_by(Store) %>%
+  summarize(average_price = mean(Price))
+
+ggplot(average_prices, aes(x = Store, y = average_price)) +
+  geom_bar(stat = "identity", fill = "thistle", color = "black") +
+  labs(x = "Store", y = "Average Price of Products") +
+  coord_flip() + ggtitle("Average Price of Products Sold at Different Stores") + theme_minimal()
+
+```
+
+#### The bar graph displaying the average prices of products across these 14 different stores highlights a significant variation. Notably, there's an almost $5 disparity between the lowest average price found at "Fiesta" and the highest average price recorded at Whole Foods. 
+
+#### Product Availability Across Stores 
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+
+products_in_stores <- groceries_data %>%
+  group_by(Product) %>%
+  summarize(number_of_stores = n_distinct(Store))
+
+ggplot(products_in_stores, aes(x = Product, y = number_of_stores)) +
+  geom_bar(stat = "identity", fill = "thistle", color = "black") +
+  labs(x = "Products", y = "Number of Stores Where Product is Sold") +
+  coord_flip() + ggtitle("Products and the Number of Stores Where They Are Sold") + theme_minimal() + scale_y_continuous(breaks = seq(0, 14, by = 1))
+```
+
+#### This bar graph displays the number of stores where each product is available. It also highlights a notable difference in product availability. For example, items like Lucky Charms, Frosted Flakes, Tortilla chips, and Cinnamon Toast Crunch are only found in 4 of these stores, whereas others like Iodized Salt, Milk, and eggs are available in all 14 stores. 
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+
+PTP_model <- lm(Price ~ Type + Product, data = groceries_data)
+get_regression_table(PTP_model, conf.level = 0.95, digits=3)
+```
+
+##### It seems the "Type: Convenience" category isn't appearing in my regression table despite numerous attempts to include it. Instead, I'll consider the "Type: Small Format" stores as convenience stores for the purpose of analysis.
+#### The regression table indicates that compared to regular grocery stores such as Albertsons, HEB, or Krogers, convenience stores typically charge between $0.14 and $0.75 more for the same product
+
+### Price of Products by Stores
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+PSP_model <- lm(Price ~ Store + Product, data = groceries_data)
+get_regression_table(PSP_model, conf.level = 0.95, digits=3) 
+```
+
+#### As evidenced by the regression table, it's clear that the two stores charging the lowest prices for the same products are Walmart, with an estimate of -0.993, and Kroger Fresh Fare, with an estimate of -0.902. 
+
+### Central Market vs. H-E-B
+
+#### Comparing these coefficients, we observe that Central Market charges slightly less (-0.573) compared to H-E-B (-0.646) for the same product. However, this difference is very small. In fact, it's relatively small (-0.073) compared to the difference found between other stores. For instance, Walmart (-0.993) and Whole Foods (0.364) exhibit a much larger difference. This might lead us to believe that this isn't a case of price discrimination, where Central Market, being a fancier store, charges more for the same product. Instead, it could be that Central Market sells different products that are inherently more expensive than those found in HEB. 
+
+### Effect of Income on Price
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+groceries_income <- groceries_data %>% 
+  mutate(Income10K = Income / 10000)
+
+income_model <- lm(Price ~ Product + Income10K, data = groceries_income)
+get_regression_table(income_model, conf.level = 0.95, digits=3)
+
+income_coef <- standardize_parameters(income_model) %>%
+  filter(Parameter == "Income10K")
+income_coef
+```
+
+#### In the standardized parameters table, the coefficient for Income10K is -0.03, indicating that a one-standard deviation increase in income (measured in multiples of $10,000) corresponds to a 0.03 standard deviation decrease in the expected price consumers are willing to pay for the same product. This suggests that consumers in ZIP codes with lower incomes, often considered poorer areas, anticipate or are willing to pay lower prices compared to those in areas with higher average incomes.  
